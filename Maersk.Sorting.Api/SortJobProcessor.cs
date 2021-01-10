@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Hangfire;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,6 +15,19 @@ namespace Maersk.Sorting.Api
         public SortJobProcessor(ILogger<SortJobProcessor> logger)
         {
             _logger = logger;
+        }
+
+        public List<SortJob> GetJobs()
+        {
+            var jobs = new List<SortJob>();
+            var monitoringApi = JobStorage.Current.GetMonitoringApi();
+            var successedJobs = monitoringApi.SucceededJobs(0, 100);
+            var processingJobs = monitoringApi.ProcessingJobs(0, 100);
+            jobs.AddRange(successedJobs.Select(x => JsonConvert.DeserializeObject<SortJob>(x.Value.Result.ToString())));
+            foreach (var job in processingJobs)
+                foreach (var item in job.Value.Job.Args)
+                    jobs.Add((SortJob)item);
+            return jobs;
         }
 
         public async Task<SortJob> Process(SortJob job)

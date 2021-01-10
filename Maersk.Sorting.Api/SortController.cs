@@ -1,6 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
+using Hangfire;
+using System.Collections.Generic;
+using System.Linq;
+using Newtonsoft.Json;
 
 namespace Maersk.Sorting.Api.Controllers
 {
@@ -9,10 +13,12 @@ namespace Maersk.Sorting.Api.Controllers
     public class SortController : ControllerBase
     {
         private readonly ISortJobProcessor _sortJobProcessor;
+        private readonly IBackgroundJobClient _backgroungJobClient;
 
-        public SortController(ISortJobProcessor sortJobProcessor)
+        public SortController(ISortJobProcessor sortJobProcessor, IBackgroundJobClient backgroungJobClient)
         {
             _sortJobProcessor = sortJobProcessor;
+            _backgroungJobClient = backgroungJobClient;
         }
 
         [HttpPost("run")]
@@ -31,25 +37,37 @@ namespace Maersk.Sorting.Api.Controllers
             return Ok(completedJob);
         }
 
+        [Route("")]
         [HttpPost]
-        public Task<ActionResult<SortJob>> EnqueueJob(int[] values)
+        public ActionResult<SortJob> EnqueueJob(int[] values)
         {
             // TODO: Should enqueue a job to be processed in the background.
-            throw new NotImplementedException();
+            var pendingJob = new SortJob(
+               id: Guid.NewGuid(),
+               status: SortJobStatus.Pending,
+               duration: null,
+               input: values,
+               output: null);
+            _backgroungJobClient.Enqueue(() => _sortJobProcessor.Process(pendingJob));
+            return Ok(pendingJob);
         }
 
+        [Route("")]
         [HttpGet]
-        public Task<ActionResult<SortJob[]>> GetJobs()
+        public ActionResult<List<SortJob>> GetJobs()
         {
             // TODO: Should return all jobs that have been enqueued (both pending and completed).
-            throw new NotImplementedException();
+            return Ok(_sortJobProcessor.GetJobs());
         }
 
-        [HttpGet("{jobId}")]
-        public Task<ActionResult<SortJob>> GetJob(Guid jobId)
+        [Route("{jobId}")]
+        [HttpGet]
+        public ActionResult<SortJob> GetJob(Guid jobId)
         {
             // TODO: Should return a specific job by ID.
-            throw new NotImplementedException();
+            var jobDetails = _sortJobProcessor.GetJobs().Find(x => x.Id.ToString().Equals(jobId.ToString()));
+            if (jobDetails != null) return Ok(jobDetails);
+            else return NotFound();
         }
     }
 }

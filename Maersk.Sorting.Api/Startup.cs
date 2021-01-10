@@ -1,3 +1,5 @@
+using Hangfire;
+using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -22,7 +24,10 @@ namespace Maersk.Sorting.Api
                 .AddControllers()
                 .AddNewtonsoftJson(options => options.SerializerSettings.Converters.Add(new StringEnumConverter()));
 
+            services.AddHangfire(c => c.UseMemoryStorage());
+
             services.AddSingleton<ISortJobProcessor, SortJobProcessor>();
+            services.AddSingleton<IBackgroundJobClient, BackgroundJobClient>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -33,6 +38,9 @@ namespace Maersk.Sorting.Api
             }
 
             app.UseRouting();
+
+            app.UseHangfireServer();
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();

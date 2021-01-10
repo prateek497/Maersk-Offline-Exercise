@@ -1,9 +1,11 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Maersk.Sorting.Api
 {
     public interface ISortJobProcessor
     {
         Task<SortJob> Process(SortJob job);
+        List<SortJob> GetJobs();
     }
 }
